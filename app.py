@@ -3,10 +3,12 @@ import tensorflow as tf
 import pickle
 import numpy as np
 
+from huggingface_hub import hf_hub_download
 
-# --------------------------------------------------
-# Page configuration
-# --------------------------------------------------
+
+# ============================================================
+# PAGE CONFIGURATION
+# ============================================================
 
 st.set_page_config(
     page_title="Toxic Comment Detector",
@@ -15,9 +17,11 @@ st.set_page_config(
 )
 
 
-# --------------------------------------------------
-# Constants
-# --------------------------------------------------
+# ============================================================
+# CONFIGURATION
+# ============================================================
+
+MODEL_REPO = "arm19/toxic-comment-bilstm"
 
 MAX_LENGTH = 200
 
@@ -31,49 +35,76 @@ LABELS = [
 ]
 
 
-# --------------------------------------------------
-# Load model
-# --------------------------------------------------
+# ============================================================
+# LOAD MODEL
+# ============================================================
 
 @st.cache_resource
 def load_model():
 
+    model_path = hf_hub_download(
+        repo_id=MODEL_REPO,
+        filename="toxic_bilstm.keras"
+    )
+
     model = tf.keras.models.load_model(
-        "toxic_bilstm.keras"
+        model_path
     )
 
     return model
 
 
-# --------------------------------------------------
-# Load tokenizer
-# --------------------------------------------------
+# ============================================================
+# LOAD TOKENIZER
+# ============================================================
 
 @st.cache_resource
 def load_tokenizer():
 
-    with open("tokenizer.pkl", "rb") as f:
-        tokenizer = pickle.load(f)
+    tokenizer_path = hf_hub_download(
+        repo_id=MODEL_REPO,
+        filename="tokenizer.pkl"
+    )
+
+    with open(tokenizer_path, "rb") as file:
+
+        tokenizer = pickle.load(file)
 
     return tokenizer
 
 
-model = load_model()
-tokenizer = load_tokenizer()
+# ============================================================
+# LOAD MODEL AND TOKENIZER
+# ============================================================
+
+try:
+
+    model = load_model()
+    tokenizer = load_tokenizer()
+
+except Exception as error:
+
+    st.error(
+        "Unable to load the AI model or tokenizer."
+    )
+
+    st.exception(error)
+
+    st.stop()
 
 
-# --------------------------------------------------
-# Prediction function
-# --------------------------------------------------
+# ============================================================
+# PREDICTION FUNCTION
+# ============================================================
 
 def predict_toxicity(comment):
 
-    # Convert text to sequence
+    # Convert text into integer sequence
     sequence = tokenizer.texts_to_sequences(
         [comment]
     )
 
-    # Pad sequence
+    # Pad the sequence
     padded_sequence = tf.keras.utils.pad_sequences(
         sequence,
         maxlen=MAX_LENGTH,
@@ -81,7 +112,7 @@ def predict_toxicity(comment):
         truncating="post"
     )
 
-    # Get probabilities
+    # Get predictions
     probabilities = model.predict(
         padded_sequence,
         verbose=0
@@ -90,60 +121,70 @@ def predict_toxicity(comment):
     return probabilities
 
 
-# --------------------------------------------------
-# User Interface
-# --------------------------------------------------
+# ============================================================
+# TITLE
+# ============================================================
 
-st.title("🛡️ Toxic Comment Detector")
+st.title(
+    "🛡️ Toxic Comment Detector"
+)
 
 st.write(
-    "Enter a social media comment below to analyze "
-    "whether it contains different types of toxic content."
+    "Detect different types of toxic content "
+    "in social media comments using Deep Learning."
 )
+
+
+# ============================================================
+# INFORMATION
+# ============================================================
 
 st.info(
-    "This application uses a Bi-LSTM deep learning model "
-    "trained on the Jigsaw Toxic Comment dataset."
+    "This application uses a Bi-LSTM model trained "
+    "on the Jigsaw Toxic Comment Classification dataset."
 )
 
 
-# --------------------------------------------------
-# Text input
-# --------------------------------------------------
+# ============================================================
+# USER INPUT
+# ============================================================
 
 comment = st.text_area(
-    "Enter your comment:",
+    "Enter a social media comment:",
     height=150,
     placeholder="Example: You are an idiot..."
 )
 
 
-# --------------------------------------------------
-# Analyze button
-# --------------------------------------------------
+# ============================================================
+# ANALYZE BUTTON
+# ============================================================
 
 if st.button(
     "🔍 Analyze Comment",
     use_container_width=True
 ):
 
-    if comment.strip() == "":
-        
+    # Check empty input
+    if not comment.strip():
+
         st.warning(
-            "Please enter a comment first."
+            "Please enter a comment before analyzing."
         )
 
     else:
 
+        # Get predictions
         probabilities = predict_toxicity(
             comment
         )
 
+        # Results heading
         st.subheader(
             "Prediction Results"
         )
 
-        # Display results
+        # Display each label
         for label, probability in zip(
             LABELS,
             probabilities
@@ -151,26 +192,21 @@ if st.button(
 
             percentage = probability * 100
 
-            col1, col2 = st.columns(
-                [3, 1]
+            st.write(
+                f"**{label}: {percentage:.2f}%**"
             )
-
-            with col1:
-                st.write(label)
-
-            with col2:
-                st.write(
-                    f"{percentage:.2f}%"
-                )
 
             st.progress(
                 float(probability)
             )
 
-        # Overall prediction
-        toxic_probability = probabilities[0]
+        # ----------------------------------------------------
+        # Overall toxicity
+        # ----------------------------------------------------
 
         st.divider()
+
+        toxic_probability = probabilities[0]
 
         if toxic_probability >= 0.5:
 
@@ -185,29 +221,12 @@ if st.button(
             )
 
 
-# --------------------------------------------------
-# Footer
-# --------------------------------------------------
+# ============================================================
+# FOOTER
+# ============================================================
 
 st.divider()
 
 st.caption(
     "AI/ML Project — Multilabel Toxic Comment Detection"
 )
-
-from huggingface_hub import hf_hub_download
-
-MODEL_REPO = "arm19/toxic-comment-bilstm"
-
-model_path = hf_hub_download(
-    repo_id=MODEL_REPO,
-    filename="toxic_bilstm.keras"
-)
-
-tokenizer_path = hf_hub_download(where to tyo    repo_id=MODEL_REPO,
-    filename="tokenizer.pkl"
-)
-model = tf.keras.models.load_model(model_path)
-
-with open(tokenizer_path, "rb") as f:
-    tokenizer = pickle.load(f)
