@@ -194,3 +194,20 @@ st.divider()
 st.caption(
     "AI/ML Project — Multilabel Toxic Comment Detection"
 )
+
+from huggingface_hub import hf_hub_download
+
+MODEL_REPO = "arm19/toxic-comment-bilstm"
+
+model_path = hf_hub_download(
+    repo_id=MODEL_REPO,
+    filename="toxic_bilstm.keras"
+)
+
+tokenizer_path = hf_hub_download(where to tyo    repo_id=MODEL_REPO,
+    filename="tokenizer.pkl"
+)
+model = tf.keras.models.load_model(model_path)
+
+with open(tokenizer_path, "rb") as f:
+    tokenizer = pickle.load(f)
